@@ -12,8 +12,8 @@ use cmds::dotnet::{binlog, dotnet_cmd, dotnet_format_report, dotnet_trx};
 use cmds::git::{diff_cmd, gh_cmd, git, glab_cmd, gt_cmd};
 use cmds::go::{go_cmd, golangci_cmd};
 use cmds::js::{
-    lint_cmd, next_cmd, npm_cmd, playwright_cmd, pnpm_cmd, prettier_cmd, prisma_cmd, tsc_cmd,
-    vitest_cmd,
+    bun_cmd, lint_cmd, next_cmd, npm_cmd, playwright_cmd, pnpm_cmd, prettier_cmd, prisma_cmd,
+    tsc_cmd, vitest_cmd,
 };
 use cmds::python::{mypy_cmd, pip_cmd, pytest_cmd, ruff_cmd};
 use cmds::ruby::{rake_cmd, rspec_cmd, rubocop_cmd};
@@ -539,6 +539,20 @@ enum Commands {
     /// npx with intelligent routing (tsc, eslint, prisma -> specialized filters)
     Npx {
         /// npx arguments (command + options)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Bun run/install/test/build/add/remove with filtered output
+    Bun {
+        /// bun arguments (subcommand + options, or script name)
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+    },
+
+    /// Bunx (bun x) with filtered output
+    Bunx {
+        /// bunx arguments (command + options)
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
     },
@@ -1988,6 +2002,21 @@ fn run_cli() -> Result<i32> {
             0
         }
 
+        Commands::Bun { args } => bun_cmd::run(&args, cli.verbose, cli.skip_env)?,
+
+        Commands::Bunx { args } => {
+            if args.is_empty() {
+                anyhow::bail!("bunx requires a command argument");
+            }
+            // Intelligent routing: delegate to specialized filters for known tools.
+            match args[0].as_str() {
+                "tsc" | "typescript" => tsc_cmd::run(&args[1..], cli.verbose)?,
+                "eslint" | "biome" => lint_cmd::run(&args[1..], cli.verbose)?,
+                "prettier" => prettier_cmd::run(&args[1..], cli.verbose)?,
+                _ => bun_cmd::exec(&args, cli.verbose, cli.skip_env)?,
+            }
+        }
+
         Commands::Npx { args } => {
             if args.is_empty() {
                 anyhow::bail!("npx requires a command argument");
@@ -2408,6 +2437,8 @@ fn is_operational_command(cmd: &Commands) -> bool {
             | Commands::Cargo { .. }
             | Commands::Npm { .. }
             | Commands::Npx { .. }
+            | Commands::Bun { .. }
+            | Commands::Bunx { .. }
             | Commands::Curl { .. }
             | Commands::Ruff { .. }
             | Commands::Pytest { .. }
