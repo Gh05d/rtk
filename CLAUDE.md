@@ -8,6 +8,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a fork with critical fixes for git argument parsing and modern JavaScript stack support (pnpm, vitest, Next.js, TypeScript, Playwright, Prisma).
 
+## Fork-specific (this is NOT upstream)
+
+This repo is a hardened tracking fork of `rtk-ai/rtk`. Differences from upstream:
+
+- **No network egress** — telemetry module + `ureq`/`getrandom` deps removed (commit `fe25594`). Do NOT re-add.
+- **Tracks `upstream/master` only** (not `develop`). Release-please cycles only.
+- **Pre-merge gate:** never `git pull upstream master`. Run `bash scripts/audit-upstream.sh` first; exit code 2 means manual review required. After merge, update trust log in `SUPPLY_CHAIN.md`.
+- **Fork-only filters:** `src/cmds/rust/runner.rs` (cargo-test panic body + stack preservation, fixture at `tests/fixtures/cargo_test_failures_raw.txt`); `src/cmds/js/bun_cmd.rs` (bun + bunx, missing upstream).
+- **Pre-existing upstream lint debt** (don't mix into unrelated commits): `useless format!` at `src/cmds/js/pnpm_cmd.rs:418-419`, unused `e` at `src/core/utils.rs:342`.
+- **`automod::dir!`** in `src/cmds/*/mod.rs` auto-includes any `*.rs` sibling — no manual `pub mod` needed when adding a filter.
+- **Smoke-test rewrite:** `target/debug/rtk rewrite "git status"` shows what the PreToolUse hook would emit.
+- **Trust anchor:** `2fbc7514` (upstream v0.39.0). See `SUPPLY_CHAIN.md` for log.
+
 ### Name Collision Warning
 
 **Two different "rtk" projects exist:**
