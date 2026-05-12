@@ -1,0 +1,109 @@
+name: Upstream supply-chain scan
+
+# Weekly check for upstream changes. Opens an issue on the fork if
+# the audit-upstream.sh scanner detects new commits, with a flag
+# count and the merge-base..tip range to review.
+#
+# Runs Sundays 04:00 UTC, and on manual dispatch.
+
+on:
+  schedule:
+    - cron: '0 4 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork (full history for merge-base)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/rtk-ai/rtk.git
+
+      - name: Install cargo-audit
+        run: cargo install --locked cargo-audit
+        continue-on-error: true
+
+      - name: Run scanner
+        id: scan
+        run: |
+          set +e
+          output=$(bash scripts/audit-upstream.sh 2>&1)
+          code=$?
+          echo "$output"
+          {
+            echo "exit_code=$code"
+            echo "output<<SCAN_EOF"
+            echo "$output"
+            echo "SCAN_EOF"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Find existing open scan issue
+        id: existing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'upstream-scan',
+              per_page: 5,
+            });
+            return issues.length > 0 ? issues[0].number : 0;
+          result-encoding: string
+
+      - name: Open or update issue (exit code 2 = review needed)
+        if: steps.scan.outputs.exit_code == '2'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `${{ steps.scan.outputs.output }}`;
+            const date = new Date().toISOString().slice(0, 10);
+            const body = [
+              `**Date:** ${date}`,
+              `**Workflow run:** ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+              '',
+              '**Scanner output:**',
+              '```',
+              output,
+              '```',
+              '',
+              'Review locally:',
+              '```bash',
+              'git fetch upstream',
+              'git diff $(git merge-base HEAD upstream/master) upstream/master',
+              '```',
+              '',
+              'Once reviewed and merged, record the new trust anchor in `SUPPLY_CHAIN.md`.',
+            ].join('\n');
+
+            const existing = parseInt('${{ steps.existing.outputs.result }}', 10);
+            if (existing > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing,
+                body: `New scan on ${date} — still flagged.\n\n${body}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `Upstream scan: review required (${date})`,
+                body,
+                labels: ['upstream-scan', 'supply-chain'],
+              });
+            }
+
+      - name: Fail job if scanner flagged
+        if: steps.scan.outputs.exit_code == '2'
+        run: exit 2
