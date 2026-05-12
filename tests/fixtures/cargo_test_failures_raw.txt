@@ -1,0 +1,43 @@
+   Compiling demo v0.1.0 (/tmp/demo)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running unittests src/lib.rs (target/debug/deps/demo-abc123)
+
+running 4 tests
+test math::add_test ... ok
+test math::div_test ... FAILED
+test math::mul_test ... ok
+test parse::parse_int ... FAILED
+
+failures:
+
+---- math::div_test stdout ----
+
+thread 'math::div_test' panicked at src/math.rs:23:5:
+assertion `left == right` failed
+  left: 5
+  right: 4
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/abc/library/std/src/panicking.rs:597:5
+   1: core::panicking::panic_fmt
+             at /rustc/abc/library/core/src/panicking.rs:72:14
+   2: demo::math::div_test
+             at ./src/math.rs:23:5
+   3: demo::math::div_test::{{closure}}
+             at ./src/math.rs:20:1
+
+---- parse::parse_int stdout ----
+
+thread 'parse::parse_int' panicked at src/parse.rs:11:32:
+called `Result::unwrap()` on an `Err` value: ParseIntError { kind: InvalidDigit }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    math::div_test
+    parse::parse_int
+
+test result: FAILED. 2 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `--lib`
