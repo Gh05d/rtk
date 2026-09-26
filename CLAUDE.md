@@ -20,6 +20,9 @@ This repo is a hardened tracking fork of `rtk-ai/rtk`. Differences from upstream
 - **`automod::dir!`** in `src/cmds/*/mod.rs` auto-includes any `*.rs` sibling — no manual `pub mod` needed when adding a filter.
 - **Smoke-test rewrite:** `target/debug/rtk rewrite "git status"` shows what the PreToolUse hook would emit.
 - **Trust anchor:** `2fbc7514` (upstream v0.39.0). See `SUPPLY_CHAIN.md` for log.
+- **Install nur aus dem Checkout:** `cargo install --path .` → `~/.cargo/bin/rtk`; Claude-Code-Hook in `~/.claude/settings.json` (PreToolUse, absolut gepinnt auf `/home/pascal/.cargo/bin/rtk hook claude`). Nie Release-Binaries (SUPPLY_CHAIN.md §1).
+- Wöchentlicher Upstream-Scan: `.github/workflows/upstream-scan.yml` öffnet ein Issue im Fork bei Treffern.
+- `.claude/` (agents/commands/skills/hooks) stammt von upstream (#491), nicht fork-spezifisch.
 
 ### Name Collision Warning
 
@@ -29,7 +32,7 @@ This repo is a hardened tracking fork of `rtk-ai/rtk`. Differences from upstream
 
 **Verify correct installation:**
 ```bash
-rtk --version  # Should show "rtk 0.28.2" (or newer)
+rtk --version  # Should show "rtk 0.39.0" (or newer)
 rtk gain       # Should show token savings stats (NOT "command not found")
 ```
 
@@ -73,6 +76,7 @@ cargo fmt --all && cargo clippy --all-targets && cargo test --all
 ```
 
 ### Package Building
+(hyperfine, cargo-deb, cargo-generate-rpm, cargo-audit sind lokal NICHT installiert)
 ```bash
 cargo deb                     # DEB package (needs cargo-deb)
 cargo generate-rpm            # RPM package (needs cargo-generate-rpm, after release build)
